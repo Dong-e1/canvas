@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #mycanv {
+            background: #369;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="mycanv" width="600" height="600"></canvas>
+    <script>
+        /**@type{HTMLCanvasElement}*/
+        var canv = document.getElementById('mycanv')
+        var ctx = canv.getContext('2d')
+        //基础规划
+        //贪吃蛇： 蛇-数组[id],食物：id，移动方向：上下左右
+        //游戏块布局：按行列布局：20*20=400，id：0~399
+        //移动：左-1，上-20，右1，下20  键盘事件keycode：左37，上38，右38，上40
+        //解析id获取坐标：行号row；~~（id/20） 列号col：id%20
+        //坐标x，y：x=col*块宽   y=row*块高
+        //-----移动----
+        //根据移动的方向，生成新的数的头部块next=snake[0]+方向
+        //将next添加到snake数组的头部unshift（）并设置游戏块：蛇
+        //删除尾部元素pop（），清除游戏块或设置游戏块：空
+        //如果吃到食物：不删除尾部元素，在其他地方生成新的食物
+        //----键盘事件
+        //keycode：左37，上38，右39，下40
+        //对应：左-1.上-20，右1，下20
+        //方向=[-1,-20,1,20][keycode-37]
+        var g_block = 30, g_margin = 2, g_row = 600 / g_block, g_col = 600 / g_block;
+        var snake = [45, 44], food = 58, dirc = 1;
+        var colors = ['#f63', '#3f6', '#369']
+
+
+        function setBlock(id, c) {
+            let [row, col] = [~~(id / g_col), id % g_col];
+            let [x, y] = [col * g_block - g_margin, row * g_block - g_margin]
+            ctx.save()
+            ctx.fillStyle = colors[c];
+            ctx.fillRect(x, y, g_block - g_margin * 2, g_block - g_margin * 2)
+            ctx.restore()
+        }
+        snake.forEach(n => setBlock(n, 0))
+        setBlock(food, 1);
+
+        var ttimer, pause = false;
+        ttimer = setInterval(Move, 300)
+        function Move() {
+            let next = snake[0] + dirc;
+            //bug2:边界问题：四个方向
+            let exp1 = next < 0,
+                exp2 = next > g_col * g_row,
+                exp3 = (dirc == 1 && next % g_col == 0),
+                exp4 = (dirc == -1 && next % g_col == (g_col - 1));
+            if (exp1 || exp2 || exp3 || exp4) {
+                alert('游戏结束')
+                clearInterval(ttimer)
+                return
+            }
+            snake.unshift(next);//unshift() 方法可向数组的开头添加一个或更多元素，并返回新的长度。
+            setBlock(next, 0);
+            if (next == food) {
+                //在其他地方生成新的食物，并绘制游戏块：食物
+                //bug3:出现在蛇的身体里
+                while (snake.includes(food = ~~(Math.random() * g_col * g_row)));//当存在蛇数组里继续生成food直到不在跳出循环
+                setBlock(food, 1);
+            } else {
+                setBlock(snake.pop(), 2)//pop() 方法用于删除数组的最后一个元素并返回删除的元素。
+            }
+        };
+
+        //键盘事件
+        document.addEventListener('keydown', (ev) => {
+            //bug1:按键问题，限制有效按键
+            let kcode = ev.keyCode
+            if ([37, 38, 39, 40].includes(kcode)) {
+                dirc = [-1, -20, 1, 20][ev.keyCode - 37]
+            }
+            if (kcode == 32) {
+                if (pause) {
+                    pause = false
+                    ttimer = setInterval(Move, 300)
+                } else {
+                    pause = true
+                    clearInterval(ttimer)
+                }
+            }
+        })
+    </script>
+</body>
+
+</html>

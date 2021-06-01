@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #mycanv {
+            background-color: #963;
+            border-radius: 10px;
+        }
+
+        div {
+            position: relative;
+            width: 120px;
+            height: 800px;
+            float: left;
+        }
+
+        button {
+            position: absolute;
+            width: 100px;
+            height: 50px;
+            font-size: 18px;
+        }
+
+        button:first-child {
+            top: 300px;
+        }
+
+        button:last-child {
+            top: 400px;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="mycanv" width="800" height="800"></canvas>
+    <div>
+        <button onclick="again()">悔棋</button>
+        <button>重新开始</button>
+    </div>
+
+    <script>
+        //开启画布提示器
+        /**@type{HTMLCanvasElement}*/
+        var canv = document.getElementById('mycanv');
+        var ctx = canv.getContext('2d');
+        //绘制棋盘:15*15
+        for (let i = 1; i <= 15; i++) {
+            ctx.beginPath()
+            ctx.moveTo(50 * i, 50)
+            ctx.lineTo(50 * i, 750)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(50, 50 * i)
+            ctx.lineTo(750, 50 * i)
+            ctx.stroke()
+        }
+
+
+
+
+        //初始化游戏基础信息
+        var fiveChess = [
+            { 'name': '黑子', 'color': '#111' },
+            { 'name': '白子', 'color': '#eee' }
+        ]
+        var chess = 0;//当前执棋
+        var chess_rec = [];//下棋的记录
+
+        //绘制棋子
+        function setChess(x, y, c) {
+            ctx.save()
+            ctx.beginPath()
+            ctx.fillStyle = c;
+            ctx.arc(x, y, 25, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        //向画布添加点击事件（DOM事件）
+        canv.addEventListener('click', chessDown)
+
+        function chessDown(ev) {
+            //获取点击事件的坐标：screenX/Y   clientX/Y   pageX/Y  layerX/Y   offsetX/Y
+            //screenX/Y: 相当于当前屏幕（分辨率）的坐标
+            //clientX/Y: 相当于客户端（浏览器）的坐标
+            //pageX/Y:   相当于页面坐标
+            //layerX/Y:  相当于DOM元素（祖先元素）的坐标(定位问题)
+            //offsetX/Y: 相当于DOM元素（事件主体）的坐标
+
+            let x = Math.round(ev.offsetX / 50),//round方法是向最接近的整数约等
+                y = Math.round(ev.offsetY / 50);
+
+            //修正坐标
+            if (x * y > 0 && x < 16 && y < 16 && !chess_rec.includes(x + '-' + y)) {
+                chess_rec.push(x + '-' + y)
+                setChess(x * 50, y * 50, fiveChess[chess].color);
+                if (chess_rec.length > 8) checkOver(x, y, chess)
+                chess ^= 1;//异或
+            }
+        };
+
+
+        //判断游戏输赢
+        function checkOver(x, y, ch) {
+            let chs = chess_rec.filter((n, i) => i % 2 == ch);//挑选出现在下棋的所有记录
+            //与所有可能胜利进行判断，some代表只要一个成立就为胜利
+            let win = getwins_5(x, y).some(arr => arr.every(n => chs.includes(n)));
+            if (win) {
+                setTimeout(() => {
+                    alert(`恭喜${fiveChess[ch].name}胜利`);
+                    var ret = confirm('是否继续游戏')
+                    if (ret) {
+                        //刷新页面
+                        window.location.reload();
+                    } else {
+                        //取消监听事件
+                        canv.removeEventListener('click', chessDown);
+                        btns[0].removeAttribute('onclick')
+                    }
+                }, 100);
+            }
+        }
+        //各个方向上的九子
+        function getwins_9(x, y) {
+            var wins = [[], [], [], []];
+            for (let i = -4; i <= 4; i++) {
+                let rg1 = x + i > 0 && x + i < 16,
+                    rg2 = y + i > 0 && y + i < 16,
+                    rg3 = y - i > 0 && y - i < 16;
+                //横向9子
+                if (rg1) wins[0].push(`${x + i}-${y}`);
+                //纵向9子
+                if (rg2) wins[1].push(`${x}-${y + i}`);
+                //左上右下
+                if (rg1 && rg2) wins[2].push(`${x + i}-${y + i}`);
+                //左下右上
+                if (rg1 && rg3) wins[3].push(`${x + i}-${y - i}`);
+            }
+            return wins.filter(arr => arr.length >= 5) //filter()方法是返回一个符合一定条件的元素
+        }
+        //各个方向赢的可能
+        function getwins_5(x, y) {
+            var wins = []
+            getwins_9(x, y).forEach(arr => {
+                for (let i = 0; i < arr.length - 4; i++) {
+                    wins.push(arr.slice(i, i + 5))
+                }
+            })
+            return wins;
+        }
+
+
+        //按钮功能
+        var btns = document.getElementsByTagName('button');
+        //悔棋
+        function again() {
+            let [x, y] = chess_rec[chess_rec.length - 1].split('-').map(n => n * 50);
+            ctx.clearRect(x - 25, y - 25, 50, 50);
+            ctx.beginPath();
+            ctx.moveTo(x - 25, y)
+            ctx.lineTo(x + 25, y)
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y - 25)
+            ctx.lineTo(x, y + 25)
+            ctx.stroke();
+            chess_rec.splice(chess_rec.length - 1, 1)
+            chess ^= 1;
+        }
+        //重新开始
+        btns[1].onclick = function () {
+            window.location.reload();
+        }
+    </script>
+</body>
+
+</html>

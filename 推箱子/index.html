@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #nav {
+            width: 800px;
+            height: 40px;
+            text-align: center;
+        }
+
+        .btn {
+            width: 100px;
+        }
+
+        #g-level {
+            width: 30px;
+            text-align: center;
+        }
+    </style>
+    <SCript src="Boxdata100.js"></SCript>
+</head>
+
+<body>
+    <div id="nav">
+        <button class="btn" onclick="select_level(-1)">上一关</button>
+        <button class="btn" onclick="select_level(1)">下一关</button>
+        <input type="text" name="" id="g-level" value="1">
+        <button class="btn" onclick="select_level()">Go</button>
+        <button class="btn" onclick="select_level(0)">重新开始</button>
+    </div>
+
+
+    <canvas id="mycanv" width="800" height="800"></canvas>
+    <script>
+        /**@type{HTMLCanvasElement}*/
+        var canv = document.getElementById('mycanv')
+        var ctx = canv.getContext('2d')
+
+
+        //解析地图，获取游戏信息
+        //1.预设游戏等级
+        var level = 0
+        var g = {
+            wall: { color: '#333', data: [] },
+            target: { color: '#9f3', data: [] },
+            box: { color: 'rgba(255,50,0,0.8)', data: [] },
+            player: { color: 'rgba(255,220,0,0.8)', data: [] }
+        } //g.wall   g['wall']
+        var keys = ['wall', 'target', 'box', 'player']
+
+
+        g_init(level)
+        function g_init(lv) {
+            let map = levels[lv]
+            //2.初始化游戏信息变量
+            keys.forEach(k => g[k].data = [])
+            //3.解析地图
+            for (let i = 0; i < 16; i++) {
+                for (let j = 0; j < 16; j++) {
+                    let d = map[i][j]
+                    let id = i * 16 + j
+                    if (d > 0) {
+                        let k = keys[d - 1]
+                        if (d == 5) {
+                            g['target'].data.push(id)
+                            g['box'].data.push(id)
+                        } else {
+                            g[k].data.push(id)
+                        }
+                    }
+                }
+            }
+            //绘制地图
+            ctx.clearRect(0, 0, 800, 800)
+            keys.forEach(k => g[k].data.forEach(n => drawRRect(k, n)))
+        }
+
+
+
+        //选择关卡
+        function select_level(n) {
+            let lv = level + n
+            if (n == undefined) lv = document.getElementById('g-level').value * 1 - 1
+            level = lv < 0 ? 0 : lv > 99 ? 99 : lv;
+            document.getElementById('g-level').value = level + 1
+            g_init(lv)
+        }
+
+        //绘制圆角矩形
+        function drawRRect(who, id) {
+            let w = 800 / 16, r = 5, m = 2;//width,radius,magin
+            let [x, y] = [id % 16 * w, ~~(id / 16) * w];
+            if (who == 'target') {
+                r = 24
+            }
+            ctx.save()
+            ctx.beginPath()
+            ctx.moveTo(x, y + r)
+            ctx.arcTo(x, y + w - m, x + w - m, y + w - m, r)
+            ctx.arcTo(x + w - m, y + w - m, x + w - m, y, r)
+            ctx.arcTo(x + w - m, y, x, y, r)
+            ctx.arcTo(x, y, x, y + w - m, r)
+            ctx.fillStyle = g[who].color;
+            ctx.fill()
+            ctx.restore()
+        }
+
+
+
+
+        //键盘事件：推箱子
+        document.addEventListener('keydown', ev => {
+            if (![37, 38, 39, 40].includes(ev.keyCode)) return
+            let dir = [-1, -16, 1, 16][ev.keyCode - 37]
+            let player = g.player.data[0]
+            let next = player + dir
+            //判断是否撞墙
+            if (g.wall.data.includes(next)) return
+
+            //判断是否推箱子
+            if (g.box.data.includes(next)) {
+                let box = next
+                //判断箱子前面是否为墙或箱子
+                let bnext = box + dir
+                if (g.wall.data.includes(bnext) || g.box.data.includes(bnext)) return
+                //推箱子
+                move('box', box, dir)
+                if (g.target.data.includes(bnext)) checkOver()
+            }
+            //移动角色
+            move('player', player, dir)
+        })
+
+
+        //移动角色（推箱子动作）
+        function move(who, id, dir) {
+            let next = id + dir
+            //更新游戏数据
+            let index = g[who].data.indexOf(id)
+            g[who].data[index] = next
+
+            //重绘地图
+            ctx.clearRect(0, 0, 800, 800)
+            keys.forEach(k => g[k].data.forEach(n => drawRRect(k, n)))
+        }
+
+
+        //判断游戏结束（输赢）
+        function checkOver() {
+            let over = g.box.data.every(b => g.target.data.includes(b))
+            if (over) {
+                setTimeout(() => {
+                    alert('恭喜完成')
+                }, 100);
+            }
+        }
+    </script>
+</body>
+
+</html>

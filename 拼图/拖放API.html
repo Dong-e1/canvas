@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #game {
+            width: 900px;
+            height: 600px;
+            /* background: url(bj.jpg) 0 0/900px 600px; */
+            position: relative;
+        }
+
+        .gblock {
+            width: 200px;
+            height: 200px;
+            box-sizing: border-box;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            position: absolute;
+            background: url(bj.jpg) 0 0/900px 600px;
+            transition: all .5s ease;
+        }
+
+        #g-btn {
+            font-size: 36px;
+            width: 200px;
+            height: 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="g-btn" onclick="start()">开始游戏</button>
+    <div id="game"></div>
+    <script>
+        var gamediv = document.getElementById('game');
+        var levels = [[3, 3], [4, 4], [6, 9], [12, 18]];
+        var level = levels[0];
+        var ww = 900 / level[1], hh = 600 / level[0];
+        var blocks = [],//记录游戏块对象
+            posi = [];//记录游戏块原始位置信息
+        var g_posi = [];//游戏过程中的图片信息
+
+
+        for (let i = 0; i < level[0]; i++) {
+            for (let j = 0; j < level[1]; j++) {
+                let div = document.createElement('div');
+                //设置游戏块的基本属性
+                div.id = 'g-' + i + '-' + j;
+                div.className = 'gblock'
+                div.style.width = ww + 'px';
+                div.style.height = hh + 'px';
+                //设置游戏块的位置偏移
+                div.style.transform = `translate(${j * ww}px,${i * hh}px)`
+                //设置游戏块背景，图块碎片化
+                div.style.backgroundPosition = `${-j * ww}px ${-i * hh}px`
+                //设置拖放API相关属性
+                //1.允许拖放 2.拖拽什么 3.允许放置 4,如何放置
+                div.setAttribute('draggable', 'true')
+                div.setAttribute('ondragstart', 'drag(event)')
+                div.setAttribute('ondragover', 'allowdrop(event)')
+                div.setAttribute('ondrop', 'drop(event)')
+
+
+                gamediv.appendChild(div);
+                blocks.push(div);
+                posi.push(div.style.transform)
+            }
+        }
+
+        g_posi = posi.slice()
+        //开始游戏，随机打乱图块
+        function start() {
+            for (let i = 1, glen = g_posi.length; i < glen; i++) {
+                let rnd = ~~(Math.random() * (glen - i) + i);//动态随机数组，避免替换重复
+                //解构赋值，交换元素
+                [g_posi[i - 1], g_posi[rnd]] = [g_posi[rnd], g_posi[i - 1]]
+            }
+            blocks.forEach((div, i) => {
+                div.style.transform = g_posi[i]
+            })
+            // console.log(g_posi)
+        }
+
+
+        //拖放操作
+        function drag(ev) {
+            //拖动时传递信息
+            ev.dataTransfer.setData('text', ev.target.id)
+        }
+        function allowdrop(ev) {
+            ev.preventDefault()//调用 preventDefault() 来避免浏览器对数据的默认处理（drop 事件的默认行为是以链接形式打开）
+        }
+        function drop(ev) {
+            var info = ev.dataTransfer.getData('text')
+            var dragdiv = document.getElementById(info)
+            var dragposi = dragdiv.style.transform
+            var dropdiv = ev.target
+            var dropposi = dropdiv.style.transform
+
+
+
+            dragdiv.style.transform = dropposi
+            dropdiv.style.transform = dragposi
+            if (checkOver()) {
+                setTimeout(() => {
+                    alert('恭喜完成')
+                }, 100)
+            }
+        }
+
+
+        //判断游戏结束
+        function checkOver() {
+            for (let i = 0; i < blocks.length; i++) {
+                if (blocks[i].style.transform != posi[i])
+                    return false
+            }
+            return true
+        }
+    </script>
+</body>
+
+</html>

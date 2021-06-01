@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于Canvas的扫雷游戏</title>
+    <style>
+        #gnav {
+            height: 40px;
+            text-align: center;
+        }
+
+        #mine_total {
+            width: 30px;
+            text-align: center;
+        }
+
+        #timer {
+            width: 60px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="gnav">
+        剩余：<input type="text" id="mine_total" value='0'>
+        <!-- onchange事件点整个标签都响应 -->
+        <input type="radio" name="level" id="lv-1" onchange="g_init(0)" checked='checked'>
+        <label for="lv-1">初级</label>
+        <input type="radio" name="level" id="lv-2" onchange="g_init(1)">
+        <label for="lv-2">中级</label>
+        <input type="radio" name="level" id="lv-3" onchange="g_init(2)">
+        <label for="lv-3">高级</label>
+        <button id="btn" onclick="g_init()">重新开始</button>
+        <input type="text" id="timer" />
+    </div>
+    <canvas id="mycanv" height="800" width="800"></canvas>
+    <script>
+        var gnav = document.getElementById('gnav');
+        var mine_total = document.getElementById('mine_total');
+        var mine_timer = document.getElementById('timer');
+        var canv = document.getElementById('mycanv');
+        var ctx = canv.getContext('2d');
+
+
+        // 初始化游戏信息变量
+        var levels = [
+            [9, 9, 10],
+            [16, 16, 40],
+            [16, 30, 99]
+        ];//设定游戏难度9行9列10个雷
+        var level = levels[0];//初始难度
+        var g_arr = [];//储存每一个块坐标位置 0-0 2-3 x-y
+        var g_obj = {}//代表的每一个方块的信息，g[2-3]={mark:0,open:0}坐标为键，mark代表附近雷的个数，open代表方块的状态
+        var g_color = {
+            block: '#369',
+            open: '#ddd',
+            mine: '#69d',
+            bomb: '#a00',
+            highlight: '#89f'
+        }//颜色数组
+        var mine = ['💣', '🚩', '❔', '💥'];//预设雷块标记符号
+        var mine_arr = [];//雷信息数组
+        var count = 0;//标记雷的个数
+        var ttimer = 0;//时间
+        var durtime = 0;//游戏耗时记录
+
+
+        //游戏开始
+        g_init(0)
+        function g_init(n) {
+            level = n == undefined ? level : levels[n];//n=;代表重新开始 type为undefined
+            //选择难度后 重新定义
+            g_arr = []
+            mine_arr = []
+            count = 0
+            //开启监听事件
+            canv.addEventListener('click', openBlock)
+            canv.addEventListener('contextmenu', markMine)
+            mine_timer.value = 0;
+            //清除定时器
+            if (ttimer != 0) {
+                clearInterval(ttimer);
+                durtime = 0;
+                ttimer = 0;
+            }
+            //重新定义画布大小
+            canv.width = level[1] * 50;
+            canv.height = level[0] * 50;
+            gnav.style.width = level[1] * 50 + 'px';//让显示栏居中
+            mine_total.value = level[2];//不同难度的雷个数显示
+            ctx.clearRect(0, 0, level[1] * 50, level[0] * 50)//清空区域
+            //绘制
+            for (let i = 0; i < level[0]; i++) {
+                for (let j = 0; j < level[1]; j++) {
+                    let xy = j + '-' + i;
+                    //每一个方块的坐标信息
+                    g_arr.push(xy);
+                    //每一个方块信息初始化
+                    g_obj[xy] = { mark: 0, open: 0 }//mark=-1为雷0~8为数字块 open:0未打开，1已打开，-1标注雷块，2标注疑似雷块
+                    drawBlock(xy, g_color.block)//绘制圆角矩形函数
+                }
+            }
+            setMine();//随机布雷
+        }
+
+
+
+
+        //计时器
+        function startTimer() {//游戏开始计时
+            ttimer = setInterval(() => {
+                durtime++;
+                mine_timer.value = (durtime / 10).toFixed(1);
+            }, 100);
+        }
+
+
+
+
+
+
+        //初始化布局：绘制游戏块
+
+
+        //绘制圆角矩形
+        function drawBlock(xy, c) {
+            let w = 50, r = 6, m = 2;//width,radius,margin
+            let [x, y] = xy.split('-').map(n => n * w)//map()返回一个处理过的数组
+            ctx.save()//保存canvas原先状态
+            ctx.beginPath()//新建路径
+            ctx.moveTo(x, y + r)//起点
+            ctx.arcTo(x, y + w - m, x + w - m, y + w - m, r)//切线
+            ctx.arcTo(x + w - m, y + w - m, x + w - m, y, r)
+            ctx.arcTo(x + w - m, y, x, y, r)
+            ctx.arcTo(x, y, x, y + w - m, r)
+            ctx.fillStyle = c//填充颜色
+            ctx.fill()//填充图形
+            ctx.restore()//恢复canvas原先状态
+        }
+
+
+
+
+
+        //随机布雷
+        function setMine() {
+            mine_arr = g_arr.sort(() => Math.random() - 0.5).slice(0, level[2])//随机10个块作为雷
+            mine_arr.forEach(n => {
+                g_obj[n].mark = -1
+                let around = getAround(n)//周边方块
+                around.forEach(xy => {
+                    if (g_obj[xy].mark != -1) g_obj[xy].mark++
+                })
+            })
+        }
+
+
+
+        //辅助显示
+        // showInfo()//开启或关闭
+        function showInfo() {
+            g_arr.forEach(n => {
+                if (g_obj[n].mark == -1) {
+                    drawBlock(n, g_color.mine)//设置雷块属性
+                } else {
+                    markText(n, g_obj[n].mark)//设置其他块数字
+                }
+            })
+        }
+        //显示文本
+        function markText(xy, txt) {
+            let [x, y] = xy.split('-').map(n => n * 50);//坐标
+            ctx.save()
+            ctx.font = '16px Arial'
+            ctx.fillStyle = '#f63'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(txt, x + 25, y + 25)//填充文本
+            ctx.restore()
+        }
+
+
+
+        //获取周边
+        function getAround(xy) {
+            let [x, y] = xy.split('-').map(n => n * 1)//xy拆分转换为数字
+            let around = []
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    let id = `${x + j}-${y + i}`//字符拼接
+                    if (g_arr.includes(id) && id != xy) around.push(id)//检查是否存在
+                }
+            }
+            return around
+        }
+
+
+
+        //鼠标事件：简单实现扫雷：click  contextmenu
+        // canv.addEventListener('click', openBlock)
+        // canv.addEventListener('contextmenu', markMine)
+        //鼠标左键打开块
+        function openBlock(ev) {
+            if (ttimer == 0) startTimer()
+            let x = ~~(ev.offsetX / 50);//~~类似于Math，floor
+            let y = ~~(ev.offsetY / 50);
+            let xy = x + '-' + y;
+            //打开游戏块：更新游戏数据，更新页面
+            g_obj[xy].open = 1;
+            drawBlock(xy, g_color.open)//改变颜色
+            markText(xy, g_obj[xy].mark)//显示文本
+            if (g_obj[xy].mark == 0) {
+                //递归清零
+                openZero(xy)
+            } else if (g_obj[xy].mark == -1) {
+                //触雷，游戏结束
+                drawBlock(xy, g_color.bomb)
+                markText(xy, mine[0])
+                markText(xy, mine[3])
+                checkOver()
+            }
+            // console.log(x, y)
+        }
+
+
+        //递归清零
+        function openZero(xy) {
+            let around = getAround(xy)
+            around.forEach(n => {
+                if (g_obj[n].open == 0) {
+                    g_obj[n].open = 1
+                    drawBlock(n, g_color.open)
+                    markText(n, g_obj[n].mark)
+                    if (g_obj[n].mark == 0) openZero(n)
+                }
+            })
+        }
+
+
+        //鼠标右键标记雷块
+        function markMine(ev) {
+            //目标：标注雷块，对未打开的块，标注雷块-1，标注疑似雷块2，取消标注0
+            ev.preventDefault();//阻止默认菜单
+            let x = ~~(ev.offsetX / 50);//~~类似于Math，floor
+            let y = ~~(ev.offsetY / 50);
+            let xy = x + '-' + y;
+            //更新数据 更新页面
+            if (g_obj[xy].open == 1) return;
+            if (g_obj[xy].open == 0) {
+                g_obj[xy].open = -1;
+                drawBlock(xy, g_color.mine)
+                markText(xy, mine[1])
+                count++
+                mine_total.value = level[2] - count;//显示器上标识剩下的雷块
+                if (count == level[2]) checkOver()//标记达到雷数进行判断
+            } else if (g_obj[xy].open == -1) {
+                g_obj[xy].open = 2;
+                drawBlock(xy, g_color.mine)
+                markText(xy, mine[2])
+                count--
+                mine_total.value = level[2] - count;
+            } else if (g_obj[xy].open == 2) {
+                g_obj[xy].open = 0;
+                drawBlock(xy, g_color.block)
+            }
+
+        }
+
+        //判断标记雷达到数目后，是否标记正确
+        function checkOver() {
+            if (ttimer != 0) {
+                clearInterval(ttimer);
+                durtime = 0;
+                ttimer = 0;
+            }
+            let win = mine_arr.every(n => g_obj[n].mark == g_obj[n].open)
+            setTimeout(() => {
+                alert(win ? '恭喜胜利！\n耗时：' + mine_timer.value + '秒' : '挑战失败')
+                var ret = confirm('是否继续游戏')
+                if (ret) {
+                    //刷新页面
+                    // window.location.reload();
+                    g_init();
+                    mine_timer.value = 0;
+                } else {
+                    //取消监听事件
+                    canv.removeEventListener('click', openBlock)
+                    canv.removeEventListener('contextmenu', markMine)
+                    g_arr.forEach(n => {
+                        g_obj[n].open = 1
+                        drawBlock(n, g_color.open)
+                        if (g_obj[n].mark == -1) {
+                            markText(n, mine[0])
+                        } else {
+                            markText(n, g_obj[n].mark)
+                        }
+                    })
+                }
+            }, 100);
+        }
+
+
+
+        //辅助扫雷： mousedown , mouseup
+        //1.按下鼠标，高亮周边，松开鼠标，取消高亮
+        //2.辅助扫雷，对于明确的雷块或安全块进行标注或打开
+        canv.addEventListener('mousedown', highLight)
+        canv.addEventListener('mouseup', highLight)
+        canv.addEventListener('mouseup', supGame)//可以设置多个一样的监听事件
+
+        function highLight(ev) {
+            let x = ~~(ev.offsetX / 50)
+            let y = ~~(ev.offsetY / 50)
+            let xy = x + '-' + y;
+            if (g_obj[xy].open != 1) return
+            let color = ev.type == 'mousedown' ? g_color.highlight : g_color.block;
+            getAround(xy).forEach(n => {
+                if (g_obj[n].open == 0) {
+                    drawBlock(n, color)
+                }
+            })
+        }
+        // function unhighLight(ev) {
+        //     let x = ~~(ev.offsetX / 50)
+        //     let y = ~~(ev.offsetY / 50)
+        //     let xy = x + '-' + y;
+        //     if (g_obj[xy].open != 1) return
+        //     getAround(xy).forEach(n => {
+        //         if (g_obj[n].open == 0) {
+        //             drawBlock(n, g_color.block)
+        //         }
+        //     })
+        // }
+
+
+        function supGame(ev) {
+            let x = ~~(ev.offsetX / 50)
+            let y = ~~(ev.offsetY / 50)
+            let xy = x + '-' + y;
+            if (g_obj[xy].open != 1) return
+            let mark = g_obj[xy].mark;//获取这个块附近雷数
+            let marked_mine = 0;//标记雷的个数
+            let unopen = 0;//没有打开块的个数
+            let around = getAround(xy);
+            around.forEach(n => {
+                if (g_obj[n].open == -1) marked_mine++
+                if (g_obj[n].open == 0) unopen++
+            })
+            around.forEach(n => {
+                if (g_obj[n].open == 0) {
+                    if (mark == marked_mine) {//附近雷的个数与标记雷的个数一样时
+                        g_obj[n].open = 1;
+                        drawBlock(n, g_color.open)
+                        markText(n, g_obj[n].mark)
+                        if (g_obj[n].mark == -1) {//标记错误，打开了雷，游戏结束
+                            drawBlock(n, g_color.bomb)
+                            markText(n, mine[0])
+                            markText(n, mine[3])
+                            checkOver()
+                        }
+                        if (g_obj[n].mark == 0) openZero(n)//打开方块是0继续递归打开周围方块
+                    } else if ((mark - marked_mine) == unopen) {//如果周围未打开未标记的方块与附近雷块数（抛去标记雷块）一样时
+                        g_obj[n].open = -1;
+                        drawBlock(n, g_color.mine)
+                        markText(n, mine[1])
+                        count++;
+                        mine_total.value = level[2] - count;
+                        if (count == level[2]) checkOver()
+                    }
+                }
+            })
+        }
+    </script>
+</body>
+
+</html>

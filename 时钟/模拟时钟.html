@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #mycanv {
+            width: 500px;
+            height: 500px;
+            /* background: #369; */
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="mycanv" width="500" height="500"></canvas>
+    <script>
+        /**@type {HTMLCanvasElement}*/
+        var canv = document.getElementById('mycanv');
+        var ctx = canv.getContext('2d');
+
+
+        //变形：移动translate  旋转rotate  缩放scale
+        //移动画布，重置原点（0,0）
+        ctx.translate(250, 250)
+        function setClock() {
+            //清除区域
+            ctx.clearRect(-250, -250, 500, 500)
+            //绘制表盘
+            drawRRect(-200, -200, 400, 400, 70)
+            ctx.save()
+            ctx.beginPath()
+            ctx.arc(0, 0, 180, 0, 2 * Math.PI)
+            ctx.fillStyle = '#eee'
+            ctx.fill()
+            ctx.restore()
+
+
+            //绘制刻度（数字）
+            ctx.save()
+            for (let i = 1; i <= 12; i++) {
+                ctx.rotate(30 * Math.PI / 180)
+                ctx.font = 'bold 20px Arial'
+                ctx.textAlign = 'center'
+                ctx.fillText(i, 0, -160)
+            }
+            ctx.beginPath()
+            ctx.arc(0, 0, 8, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.restore()
+
+
+
+
+
+
+            //获取系统时间
+            var cdate = new Date()
+            var hh = cdate.getHours(), mm = cdate.getMinutes(), ss = cdate.getSeconds();
+            //绘制指针：时分秒 
+            drawLine(hh * 30 + mm / 2, 6, 0, -130)
+            drawLine(mm * 6, 3, 0, -150)
+            drawLine(ss * 6, 2, 30, -170, '#f31')
+            ctx.save()
+            ctx.beginPath()
+            ctx.fillStyle = '#f31'
+            ctx.arc(0, 0, 5, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.restore()
+            window.requestAnimationFrame(setClock)
+
+        }
+        //使用 `requestAnimationFrame` 的时候，只需要反复调用它就可以实现动画效果。
+        window.requestAnimationFrame(setClock)
+
+
+
+
+        function drawRRect(x, y, w, h, r) {
+            ctx.save()
+            ctx.beginPath()
+            ctx.moveTo(x, y + r)
+            ctx.arcTo(x, y + h, x + w, y + h, r)
+            ctx.arcTo(x + w, y + h, x + w, y, r)
+            ctx.arcTo(x + w, y, x, y, r)
+            ctx.arcTo(x, y, x, y + h, r)
+            ctx.stroke()
+            ctx.fillStyle = '#111'
+            ctx.fill()
+            ctx.restore()
+        }
+
+
+        function drawLine(deg, lw, lh_0, lh_1, c) {
+            ctx.save()
+            ctx.rotate(deg * Math.PI / 180)
+            ctx.lineWidth = lw
+            ctx.strokeStyle = c || '#111'
+            ctx.lineCap = 'round'//末端圆角化
+            ctx.beginPath()
+            ctx.moveTo(0, lh_0)
+            ctx.lineTo(0, lh_1)
+            ctx.stroke()
+            ctx.restore()
+        }
+    </script>
+</body>
+
+</html>

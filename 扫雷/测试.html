@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <canvas id="tutorial" width="500" height="500"></canvas>
+    <script>
+        var canv = document.getElementById('tutorial');
+        var ctx = canv.getContext('2d');
+        let w = 50, r = 6, m = 2;//width,radius,margin
+        let x = y = 0;
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(x, y)
+        ctx.strokeRect(x, y, 50, 50)
+        ctx.closePath()
+        ctx.restore()
+        ctx.save()//保存canvas原先状态
+        ctx.beginPath()//新建路径
+        ctx.moveTo(x, y + r)//起点
+        ctx.arcTo(x, y + w - m, x + w - m, y + w - m, r)
+        ctx.arcTo(x + w - m, y + w - m, x + w - m, y, r)
+        ctx.arcTo(x + w - m, y, x, y, r)
+        ctx.arcTo(x, y, x, y + w - m, r)
+        ctx.fillStyle = 'red'//填充颜色
+        ctx.fill()//填充图形
+        ctx.restore()//恢复canvas原先状态
+    </script>
+</body>
+
+</html>
